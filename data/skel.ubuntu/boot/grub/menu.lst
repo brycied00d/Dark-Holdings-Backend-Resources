@@ -1,0 +1,6 @@
+default=0
+timeout=10
+title Ubuntu-2.6.38-13-server
+root (hd0)
+kernel /boot/vmlinuz-2.6.38-13-server root=/dev/xvda console=hvc0 ro
+initrd /boot/initrd.img-2.6.38-13-server

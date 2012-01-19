@@ -1,0 +1,22 @@
+#!/bin/bash
+
+user="$1"
+
+if [ -z $user ]; then
+	exit 1
+fi
+
+if [ -e /home/$user/slices.txt ]; then
+	distro=$(cat /home/$user/slices.txt |cut -d':' -f2)
+	if [ $distro == "squeeze" ]; then
+		echo "Debian Squeeze Linux"
+	elif [ $distro == "centos5" ]; then
+		echo "CentOS 5 Linux"
+	elif [ $distro == "centos6" ]; then
+		echo "CentOS 6 Linux"
+	else
+		echo "Linux"
+	fi
+else
+	echo "Linux"
+fi

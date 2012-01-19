@@ -1,0 +1,92 @@
+#!/bin/sh
+#
+#  This script places the new systems hostname into a couple of files within
+# the new image.
+#
+# Steve
+# --
+# http://www.steve.org.uk/
+
+
+
+prefix=$1
+
+
+#
+#  Source our common functions
+#
+if [ -e /usr/lib/xen-tools/common.sh ]; then
+    . /usr/lib/xen-tools/common.sh
+else
+    . ./hooks/common.sh
+fi
+
+
+#
+# Log our start
+#
+logMessage Script $0 starting
+
+#
+#  Determine the FQDN and Hostname
+#
+GUEST_FQDN=${hostname}
+GUEST_HOSTNAME=`echo $GUEST_FQDN | awk -F'.' '{print $1}'`
+
+sed -i "s/archlinux/$GUEST_HOSTNAME/g" ${prefix}/etc/rc.conf
+
+    #
+    #  Make sure our hostname and FQDN is resolvable
+    #
+    if [ -z "${dhcp}" ]; then
+        #
+        #  If dhcp is diabled, FQDN should resolve to our IP
+        #
+        cat >> ${prefix}/etc/hosts <<EOF
+${ip1}    $GUEST_FQDN $GUEST_HOSTNAME
+EOF
+    else
+        cat >> ${prefix}/etc/hosts <<EOF
+127.0.1.1    $GUEST_FQDN $GUEST_HOSTNAME
+EOF
+    fi
+
+
+#
+#  Allow the host system to know the IP address of our new guest.
+#
+if [ -z "${dhcp}" ]; then
+
+    if ( grep $GUEST_FQDN /etc/hosts > /dev/null ) ; then
+
+        logMessage Host already has IP address for the host $GUEST_FQDN.
+
+    else
+        if [ -z "${nohosts}" ]; then
+
+            logMessage Adding $GUEST_FQDN and $GUEST_HOSTNAME to /etc/hosts on the host
+            echo "${ip1}    $GUEST_FQDN $GUEST_HOSTNAME" >> /etc/hosts
+
+            #
+            #  If we've updated the /etc/hosts file on the host machine
+            # and there is an installation of dnsmasq installed then
+            # reload it.
+            #
+            #  This will let the local LAN clients lookup the new address.
+            #
+            if [ -x /usr/sbin/dnsmasq ] ; then
+                if [ -e /var/run/dnsmasq.pid ]; then
+
+                    logMessage Allowing DNSMasq to restart.
+                    kill -s HUP `cat /var/run/dnsmasq.pid`
+                fi
+            fi
+        fi
+    fi
+fi
+
+
+#
+#  Log our finish
+#
+logMessage Script $0 finished

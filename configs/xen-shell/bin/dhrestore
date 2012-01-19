@@ -1,0 +1,110 @@
+#!/bin/bash
+#
+#  Restore the current machine.
+#
+# DDV
+# --
+#
+
+
+#
+#  Get the machine we're imaging.
+#
+host=$1
+if [ -z "${host}" ]; then
+    echo "Usage: $0 host user"
+    exit
+fi
+
+#
+#  Get the user that we're invoked by.
+#
+user=$2
+if [ -z "${user}" ]; then
+     echo "Usage: $0 host user"
+     exit
+fi
+
+hostlv="${host}.darkholdings.com-disk"
+
+#
+#  Make sure that the restore.sh script exists.  We shouldn't have been
+# called if that wasn't the case .. but ..
+#
+if [ ! -x "/home/${user}/restore.sh" ]; then
+    echo "${user} does not have an executable restore script."
+    exit
+fi
+
+lvlist=$(lvscan |grep ${hostlv}_snap |wc -l)
+
+if [ $lvlist -eq 0 ]; then
+	echo "No snapshot exists, unable to restore. Please wait until we implement the ability to restore from a hard backup."
+	exit
+fi
+
+if [ -e "/home/$user/lastsnap.txt" ]; then
+	snaptaken=$(date --date @$(cat /home/$user/lastsnap.txt) +%c)
+else
+	snaptaken="unknown"
+fi
+
+clear
+cat <<EOF
+
+ WARNING!!!
+
+ This process will completely restore your main VPS drive to its state as of $snaptaken.
+
+ ALL OF YOUR FILESYSTEM CHANGES SINCE THEN WILL BE LOST FOREVER
+
+ If you wish to proceed please enter the following text exactly:
+
+-
+${host} ain't afraid of no ghosts!
+-
+
+EOF
+
+
+read input
+if [  "${input}" != "${host} ain't afraid of no ghosts!" ]; then
+    clear
+    echo "You changed your mind"
+    echo "Sensible choice, ghosts ARE scary."
+    echo " "
+    exit;
+fi
+
+
+#
+#  Give a final choice to bail out
+#
+clear
+cat <<EOF
+
+  Restore process confirmed
+
+  Sleeping for 10 seconds to give you one last chance to abort with 'Ctrl-c'
+
+EOF
+
+echo -n " "
+for i in `seq 1 10`; do 
+    echo -n "${i} "
+    sleep 1
+done
+/bin/echo -e "\nCommitted."
+
+
+#
+#  Run the restore script, with the instance name to reimage and the username
+# that it is owned by.
+#
+sudo /home/${user}/restore.sh ${host} ${user} $hostlv
+
+
+#
+#  End of this script
+#
+exit

@@ -1,0 +1,194 @@
+#!/usr/bin/env perl
+############################################################
+# David Della Vecchia
+# Dark Holdings LLC
+# Created on 11/1/2011
+# zetas@zet.as
+#
+# Originally provided by The Book of Xen, highly modified.
+############################################################
+
+my $starttime = `date +%s`;
+my @disks,@stores,@files,@lvs;
+my $domain=$ARGV[0];
+my $destdir="/store/backup/${domain}/";
+my $dom_homedir="/home/$domain/";
+my $rundate=$ARGV[1];
+my $logfile="/var/log/dhbackup/backup-$rundate.log";
+my $snapsize="1024m";
+if ((length($domain) eq 0) || (length($rundate) eq 0)) {
+	# This script is meant to be run by a wrapper that loops through all the domU's
+	# because state isnt maintained from run to run i allow for the wrapper to specify the timestamp,
+	# that way we can be sure this script will continue writing to the same logfile throughout each iteration.
+	print "dhbackup domain rundate\n";
+	exit;
+}
+system "mkdir -p /var/log/dhbackup";
+&logwrite("Starting backup for domain $domain",1);
+system "mkdir -p $destdir";
+open (FILE, "/etc/xen/$domain") ;
+while (<FILE>) {
+	if(m/^disk/) {
+		s/.*\[\s+([^\]]+)\s*\].*/\1/;
+		@disks = split(/[,]/);
+		# discard elements without a :, since they can't be
+		# backing store specifiers
+		while($disks[$n]) {
+			$disks[$n] =~ s/['"]//g;
+			push(@stores,"$disks[$n]") if("$disks[$n]"=~ m/:/);
+			$n++;
+		}
+		$n=0;
+		# split on : and take only the last field if the first
+		# is a recognized device specifier.
+		while($stores[$n]) {
+			@tmp = split(/:/, $stores[$n]);
+			# Only look for files that have -disk in the name, otherwise they are recovery drives or extra drives that wont be backed up
+			# We use LVM backed vm's 100% so this should never fire but just in case.
+			if((($tmp[0] =~ m/file/i) || ($tmp[0] =~ m/tap/i)) && ($tmp[1] =~ m/disk/i)) {
+				&logwrite("Determined $tmp[$#tmp] is file backed, adding to file list");
+				push(@files, $tmp[$#tmp]);
+			}
+			# Same as above, the physical's need disk in the name otherwise they are not the root disk.
+			elsif(($tmp[0] =~ m/phy/i) && ($tmp[1] =~ m/disk/i)) {
+				&logwrite("Determined $tmp[$#tmp] is lvm backed, adding to lvm list");
+				push(@lvs, $tmp[$#tmp]);
+			}
+			$n++;
+		}
+	}
+}
+
+close FILE;
+
+# Should never be used really but keeping it in here for flexibility.
+foreach(@files) {
+	&logwrite("Backing up file $_",1);
+	system("cp $_ ${destdir}");
+}
+
+# Accepts a scalar and a bool. The scalar can have newlines, it will break them up and print them on separate lines.
+# The bool controls if its echo'd to stdout or not.
+sub logwrite {
+	my $rawline = $_[0];
+	my $doprint = $_[1];
+	my $ts = `date '+%Y-%m-%d %H:%M:%S'`;
+	chomp($ts);
+	my @lineparts = split(/\n/,$rawline);
+
+	open(LOGFILE,">>$logfile");
+	
+	foreach $ln (@lineparts) {
+		if (length($ln) > 0) {
+			print LOGFILE "[$ts] - [$domain][$ln]\n";
+			
+			if ($doprint) {
+				print "$ln\n";	
+			}	
+		}
+	}
+	
+	close LOGFILE;
+}
+
+# Accepts a single scalar containing the full path the the origin disk
+# i.e. /dev/vg_san/hostname.darkholdings.com-disk
+# This sub will also deposit a timestamp of when the snap was taken into
+# the users homedir to be used later with UI scripts to allow customers to 
+# see when the snapshot was taken and if they want to restore to it.
+sub createSnap {
+	my $tosnaplv = $_[0];
+	my $snaplv = "${tosnaplv}_snap";
+	if (length($tosnaplv) > 1) {
+		&logwrite("Syncing guest and snapping",1);
+		my $sysrq =`xm sysrq $domain s 2>&1`;
+		&logwrite($sysrq);
+		my $lvc = `lvcreate --size $snapsize --snapshot --name $snaplv $tosnaplv 2>&1`;
+		&logwrite($lvc);
+		my $snapstamp = `date +%s`;
+		chomp($snapstamp);
+		system("echo $snapstamp > /home/$domain/lastsnap.txt");
+	}
+}
+
+# Accepts: Same as above.
+# If the lastsnap.txt exists it will use that to help name the dump file so we
+# can accurately keep track of when the snap was taken for restore purposes.
+sub dumpSnap {
+	my $todumplv = $_[0];
+	my $snaplv = "${todumplv}_snap";
+	if (length($todumplv) > 1) {
+		my @lvparts = split(/\//,$todumplv);
+		
+		if (-e "${dom_homedir}lastsnap.txt") {
+			&logwrite("Lastsnap exists, using it");
+			$savefiledate = `date --date @\$(cat ${dom_homedir}lastsnap.txt) +%Y%m%d-%H%M`;
+		} else {
+			&logwrite("Lastsnap does not exist, must be a first snap, using current time");
+			$savefiledate = `date +%Y%m%d-%H%M`;
+		}
+		my $savefilename = "$lvparts[3]-$savefiledate";
+		chomp($savefilename); 
+		&logwrite("Backing up lv $snaplv to ${destdir}$savefilename",1);
+		chomp($snaplv);
+		system("dd if=$snaplv |gzip -c > ${destdir}$savefilename.gz");
+	}
+}
+
+# Accepts: Same as above.
+# This sub uses the dmsetup method of removing lv partitions
+# because on debian for some reason an lv will get caught up
+# in udev and not be able to be cleanly removed on occasion, 
+# especially with snapshots. Removing it with device mapper 
+# first ensures a clean snapshot delete every time. 
+sub rmSnap {
+	my $tormlv = $_[0];
+	my $snaplv = "${tormlv}_snap";
+	if (length($tormlv) > 1) {
+		&logwrite("Removing snapshot $snaplv",1);
+#		my $dmlv = $snaplv;
+#		$dmlv =~ s/vg_san\//mapper\/vg_san-/;
+#		$dmlv =~ s/-disk/--disk/;
+#		system("dmsetup remove $dmlv");
+#		system("dmsetup remove ${dmlv}-cow");
+		my $lvrm = `lvremove $snaplv --force 2>&1`;
+		&logwrite($lvrm);
+	}
+}
+
+sub formatTime {
+	my $rt = $_[0];
+
+	if ($rt > 60) {
+		$time = ($rt/60);
+		$sec = ($rt%60);
+		if ($sec > 0) {
+			sprintf("%d minutes %d seconds",$time,$sec);
+		} else {
+			sprintf("%d minutes",$time);
+		}
+	} else {
+		sprintf("%d seconds",$rt);
+	}
+}
+
+
+foreach $lv (@lvs) {
+#	my $snapstatus = `lvscan |grep ${lv}_snap`;
+#	if (length($snapstatus) > 1) {
+		&logwrite("Snapping and dumping $lv",1);
+		&createSnap($lv);
+		&dumpSnap($lv);
+		&rmSnap($lv);
+		#&createSnap($lv);
+#	} else {
+#		&logwrite("No snap exists for $lv, creating one",1);
+		#&createSnap($lv);
+#	}
+}
+my $endtime = `date +%s`;
+my $runtime = $endtime - $starttime;
+
+$timestr = &formatTime($runtime);
+
+&logwrite("-------------------- Done backing up $domain in $timestr --------------------");

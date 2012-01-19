@@ -1,0 +1,84 @@
+#!/bin/bash
+
+. /usr/sbin/dhcommon.sh
+
+#dom="$1"
+#ip="$2"
+#interactive="$3"
+#dist="$4"
+#install_method="$5"
+#mirror="$6"
+#scriptdir="/root/scripts/util"
+#ram="$7"
+#hdd="$8"
+#swap="$9"
+#cpu="$10"
+
+mounted=0
+
+if [ -z "$dom" ]; then
+	echo "dhinstall domain ip interactive_pass distro install_method mirror/source"
+	exit 1
+fi
+
+if [ "$interactive" = "interactive" ]; then
+	passwd="--passwd"
+else
+	passwd=""
+fi
+
+if [ ! -z "$dist" ]; then
+	dist_str="--dist $dist"
+fi
+
+if [ -z "$dist" -o "$dist" == "squeeze" ]; then
+	role="--role dh_deb_minimal"
+elif [ "$dist" == "natty" ]; then
+	role="--role dh_ubu_minimal"
+elif [ "$dist" == "centos-5" ]; then
+	role="--role dh_centos5_minimal"
+else 
+	role=""
+fi
+
+if [ ! -z "$install_method" ]; then
+	install_method_str="--install-method $install_method"
+fi
+
+if [ ! -z "$mirror" -a "$install_method" != "copy" ]; then
+	mirror_str="--mirror $mirror"
+elif [ "$install_method" == "copy" ]; then
+	umount /mnt/loop 2>/dev/null
+        loopmnt $mirror
+	mounted=1
+	mirror_str="--install-source /mnt/loop"
+else
+	mirror_str=""
+fi
+
+if [ -z "$ip" -o "$ip" == "auto" ]; then
+	ip="auto"
+	netdetails=""
+else
+	subdom=$(echo $ip |cut -d'.' -f4)
+	if [ $subdom -gt 31 ]; then
+		nmask="123.123.123.123"
+		gw="123.123.123.123"
+		bcast="123.123.123.123"
+	else
+		nmask="123.123.123.123"
+		gw="123.123.123.123"
+		bcast="123.123.123.123"
+	fi
+	netdetails="--netmask $nmask --broadcast $bcast --gateway $gw"
+fi
+
+xen-create-image --hostname $dom.darkholdings.com --ip $ip $netdetails --vifname $dom --slicename $dom --admins $dom $role $dist_str $install_method_str $mirror_str $passwd $addl
+
+if [ ! -e /etc/xen/$dom ]; then
+	ln -s /etc/xen/$dom.darkholdings.com.cfg /etc/xen/$dom
+fi
+
+if [ $mounted -gt 0 ]; then
+	umount /mnt/loop
+fi

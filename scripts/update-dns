@@ -1,0 +1,4 @@
+#!/bin/bash
+requestor=$(echo "$1" |cut -d/ -f3)
+
+echo -e "Requestor: $requestor\n\nContents:\n$(cat $1)" |mail -s "New PTR Request" zetas@zet.as

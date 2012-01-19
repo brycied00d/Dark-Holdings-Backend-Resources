@@ -1,0 +1,8 @@
+default=0
+timeout=10
+
+title=Debian kernel 2.6.32-5
+    root (hd0)
+    kernel /boot/vmlinuz-2.6.32-5-amd64 ro console=hvc0 root=/dev/xvda
+    initrd /boot/initrd.img-2.6.32-5-amd64
+

@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+date=$(date +%Y%m%d-%H%M);
+domfile="/root/scripts/data/doms"
+backupdir="/store/backup"
+
+cat $domfile |while read dom; do
+dhbackup $dom $date
+done;
+
+#remove old backups
+find $backupdir -type f -mtime +6 -exec rm {} \;
+
+#here we do more stringent cleaning for specific domains
+
+find $backupdir/zetas -type f -mtime +2 -exec rm {} \;

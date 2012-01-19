@@ -1,0 +1,8 @@
+default=0
+timeout=10
+
+title=CentOS kernel 2.6.18-274.12.1
+    root (hd0)
+    kernel /boot/vmlinuz-2.6.18-274.12.1.el5xen ro console=xvc0 root=/dev/xvda
+    initrd /boot/initrd-2.6.18-274.12.1.el5xen.img
+

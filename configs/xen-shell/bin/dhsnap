@@ -1,0 +1,108 @@
+#!/bin/bash
+#
+#  Shapshot the current machine.
+#
+# DDV
+# --
+#
+
+
+#
+#  Get the machine we're imaging.
+#
+host=$1
+if [ -z "${host}" ]; then
+    echo "Usage: $0 host user"
+    exit
+fi
+
+hostlv="${host}.darkholdings.com-disk";
+exists=0
+
+#
+#  Get the user that we're invoked by.
+#
+user=$2
+if [ -z "${user}" ]; then
+     echo "Usage: $0 host user"
+     exit
+fi
+
+#
+#  Make sure that the snap.sh script exists.  We shouldn't have been
+# called if that wasn't the case .. but ..
+#
+if [ ! -x "/home/${user}/snap.sh" ]; then
+    echo "${user} does not have an executable snapshot script."
+    exit
+fi
+
+lvlist=$(lvscan |grep ${hostlv}_snap |wc -l)
+
+clear
+
+if [ $lvlist -gt 0 ]; then
+
+exists=1
+
+if [ -e "/home/$user/lastsnap.txt" ]; then
+	snaptaken=$(date --date @$(cat /home/$user/lastsnap.txt) +%c)
+else
+	snaptaken="unknown"
+fi
+	
+cat <<EOF
+
+ WARNING!!!
+
+ You have an existing snapshot taken at $snaptaken.
+
+ This process will destroy that snapshot and replace it, any data preserved
+ in that snapshot will be lost FOREVER.
+
+EOF
+
+echo -n " Do you wish to proceed?[y/n]:"
+
+read input
+if [  "${input}" != "y" -a "${input}" != "Y" ]; then
+    clear
+    echo "You changed your mind"
+    echo "Sensible choice"
+    echo " "
+    exit;
+fi
+
+
+#
+#  Give a final choice to bail out
+#
+clear
+cat <<EOF
+
+  Snapshot removal and resnap process confirmed.
+
+  Sleeping for 5 seconds to give you one last chance to abort with 'Ctrl-c'
+
+EOF
+
+echo -n " "
+for i in `seq 1 5`; do 
+    echo -n "${i} "
+    sleep 1
+done
+/bin/echo -e "\nCommitted."
+
+
+fi
+#
+#  Run the reimage script, with the instance name to reimage and the username
+# that it is owned by.
+#
+sudo /home/${user}/snap.sh ${host} ${user} $exists $hostlv
+
+
+#
+#  End of this script
+#
+exit

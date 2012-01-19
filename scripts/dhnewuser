@@ -1,0 +1,68 @@
+#!/bin/bash
+
+. /usr/sbin/dhcommon.sh
+
+#dom="$1"
+#ip="$2"
+#interactive="$3"
+#dist="$4"
+#install_method="$5"
+#mirror="$6"
+
+if [ -z $dom ]; then
+	echo "dhnewuser username ipaddr interactive dist installmethod mirror"
+	exit
+fi
+
+user=$dom
+
+dhinstall $user $ip $interactive $dist $install_method $mirror
+
+echo -n "Did the VPS install correctly? [Y/n]"
+read vpsinstall
+
+if [ -z "$vpsinstall" -o "$vpsinstall" == "Y" -o "$vpsinstall" == "y" ]; then
+	#Delete and recreate the user
+	echo "Creating user."
+	userdel -f $user
+	rm -fr /home/$user
+	useradd -m -G cust -s /usr/bin/xen-login-shell $user
+	
+	echo "Setting up sudo and home dir files"
+	cp $scriptdir/sudo_tmpl /etc/sudoers.d/$user
+	sed -i "s/user/$user/g" /etc/sudoers.d/$user
+	echo "$ip $user.darkholdings.com" >> /home/$user/ips.txt
+	
+	if [ -z "$dist" ]; then
+		dist="squeeze"
+	fi
+
+	echo "$user:$dist:$ip" >> /home/$user/slices.txt
+	
+	if [ ! -z "$dist" -a "$dist" != "squeeze" -a "$dist" != "natty" -a "$dist" != "centos-5" -a "$dist" != "centos-6" ]; then
+		rm /home/$user/image.sh
+	fi
+	
+	skelkey=$(cat /etc/skel/.ssh/authorized_keys)
+	
+	echo "Please paste in the users ssh pubkey:"
+	read pubkey
+	echo $skelkey$pubkey > /home/$user/.ssh/authorized_keys
+
+	echo -n "Do you want to start the VPS? [Y/n]:"
+	read startvps
+	if [ -z "$startvps" -o "$startvps" == "Y" -o "$startvps" == "y" ]; then
+		xm create $user
+		sleep 10
+		echo "Adding users vif to vnstat."
+		vnstat -i $user -u --enable
+	else
+		echo "Not Starting $user. Be sure to add their vif to vnstat"
+	fi
+	echo $user >> $datadom
+	echo "Done"	
+
+else
+	echo "Ok fix it and run again, quitting."
+	exit 1
+fi

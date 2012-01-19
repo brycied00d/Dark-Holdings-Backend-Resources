@@ -1,0 +1,26 @@
+
+
+
+09Finnix07 version 0f102                 07                    http://www.finnix.org/
+Copyright (C) 1999-2000, 2005-2011 Ryan Finnie         http://www.finnie.org/
+Compiled: Thu Jul 21 23:57:19 PDT 2011 (Build 2574)
+
+The Finnix compilation is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or (at your
+option) any later version.  Finnix is distributed WITHOUT ANY WARRANTY;
+without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+Based on Debian GNU/Linux, (C) SPI.  Portions based on Knoppix, (C) Klaus
+Knopper.  All other installed software within the compilation are bound by
+their respective licenses.  Source/patches for any software not managed by
+Debian/apt are available at the Finnix website.
+
+Finnix is a registered trademark of Ryan Finnie.
+
+
+
+
+Press F2 for boot options (cheat codes).
+Press ESC to return to the main menu.

@@ -1,0 +1,43 @@
+default=1
+timeout=10
+
+title= ----- Booting Your VPS -----
+    root (hd2)
+    kernel
+
+title= Your VPS
+    root (hd2)
+    kernel /boot/pv-grub-x86_64.gz (hd0)/boot/grub/menu.lst
+
+title= Failsafe Kernel (2.6.32-5-xen-amd64)
+    root (hd2)
+    kernel /boot/vmlinuz-2.6.32-5-xen-amd64 root=/dev/xvda
+    initrd /boot/initrd.img-2.6.32-5-xen-amd64
+
+title= ----- Diagnostic & Recovery Tools -----
+    root (hd2)
+    kernel
+
+title= Finix Command Prompt
+    root (hd2)
+    kernel /isolinux/linux64
+    initrd /isolinux/initrd.xz 
+
+title= ----- Reinstall OS -----
+    root (hd2)
+    kernel
+ 
+title= CentOS 5 Net Installer
+    root (hd2)
+    kernel /boot/vmlinuz-centos5-xen-install
+    initrd /boot/initrd-centos5-xen-install.img
+
+title= Debian Squeeze Net Installer
+    root (hd2)
+    kernel /boot/vmlinuz-debian6-xen-install
+    initrd /boot/initrd-debian6-xen-install.gz
+
+title= NetBSD 4.9 Net Installer
+    root (hd2)
+    kernel /boot/netbsd-INSTALL_XEN3_DOMU.gz
+

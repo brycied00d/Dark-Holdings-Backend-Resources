@@ -1,0 +1,36 @@
+#!/bin/sh
+#
+#  This script is responsible for fixing the /boot/grub/menu.lst from
+# the stacklet image.
+#
+#  This should be a simple job, but it is complicated by some of the
+# differences between filesystems - some root filesystems will require
+# the installation of new packages, and we have to handle that here.
+#
+# Steve
+# --
+# http://www.steve.org.uk/
+
+
+prefix=$1
+
+#
+#  Source our common functions
+#
+if [ -e /usr/lib/xen-tools/common.sh ]; then
+    . /usr/lib/xen-tools/common.sh
+else
+    . ./hooks/common.sh
+fi
+
+
+#
+# Log our start
+#
+logMessage Script $0 starting
+
+sed -i 's/0,0/0/' $prefix/boot/grub/menu.lst
+#
+#  Log our finish
+#
+logMessage Script $0 finished

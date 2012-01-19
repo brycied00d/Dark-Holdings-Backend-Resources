@@ -1,0 +1,15 @@
+# This is the architecture map for Finnix.  It is used to map the 
+# output of "uname -m" to an architecture group for mounting userlands.  
+# In the case of 64-bit architectures, the primary architecture group 
+# is tried first, and if it doesn't exist, the fallback group is tried.
+#
+# uname arch_group arch_fallback_group
+i386 x86
+i486 x86
+i586 x86
+i686 x86
+x86_64 amd64 x86
+ppc ppc
+powerpc ppc
+ppc64 ppc64 ppc
+powerpc64 ppc64 ppc

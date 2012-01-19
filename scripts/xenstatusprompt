@@ -1,0 +1,3 @@
+#!/bin/bash
+
+xm list |grep -v Name |awk '{split($5,state,"-"); if ( state[0] == 'r' ) { run++} else if ( state[1] == 'b' ) { block++} else if ( state[2] == 'p' ) { paused++} else { unknown++}}; END { printf("[R:%d|B:%d|P:%d|U:%d]",run,block,paused,unknown)}'

@@ -1,0 +1,10 @@
+#!/bin/bash
+
+file="$1"
+
+if [ -z "$file" ]; then
+	echo "Need a file dumbass.."
+	exit 1
+fi
+
+mount -o loop $file /mnt/loop && echo "Mounted $file successfully to /mnt/loop"

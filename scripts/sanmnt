@@ -1,0 +1,10 @@
+#!/bin/bash
+
+lv="$1"
+
+if [ -z "$lv" ]; then
+	echo "Need a lv dumbass.."
+	exit 1
+fi
+
+mount /dev/vg_san/$lv.darkholdings.com-disk /mnt/hd && echo "Mounted $lv.darkholdings.com-disk successfully to /mnt/hd"

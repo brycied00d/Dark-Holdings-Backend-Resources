@@ -1,0 +1,10 @@
+user ALL=NOPASSWD:/usr/sbin/xm list --long user
+user ALL=NOPASSWD:/usr/sbin/xm list user
+user ALL=NOPASSWD:/usr/sbin/xm console user
+user ALL=NOPASSWD:/usr/sbin/xm create -c user
+user ALL=NOPASSWD:/usr/sbin/xm create user
+user ALL=NOPASSWD:/usr/sbin/xm shutdown user
+user ALL=NOPASSWD:/usr/sbin/xm destroy user
+user ALL=NOPASSWD:/usr/sbin/xm reboot user
+user ALL=NOPASSWD:/home/user/image.sh
+user ALL=NOPASSWD:/usr/sbin/xm sysrq user *

@@ -1,0 +1,3 @@
+#!/bin/bash
+
+find ./ -maxdepth 1 -type f -printf '%s\n' |awk '{amt += $1}; END {if (amt > 1073741824) { str=(amt/1024/1024/1024); end="GB"; } else if (amt > 1048576) { str=(amt/1024/1024); end="MB"; } else { str=(amt/1024); end="KB";} printf("%3.2f %s",str,end)}'

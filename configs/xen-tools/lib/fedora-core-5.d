@@ -1,0 +1,1 @@
+fedora-core-6.d

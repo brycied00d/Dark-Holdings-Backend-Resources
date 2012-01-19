@@ -1,0 +1,137 @@
+#!/bin/sh
+#
+#  If the pygrub flag is set, this script will install the necessary
+# packages to boot the VM from the dom0 via pygrub. This script installs
+# the kernel and modules and generates a grub menu.lst in the newly
+# created maschine.
+#
+# Dmitry Nedospasov
+# --
+# http://nedos.net
+
+prefix=$1
+
+#
+#  Source our common functions
+#
+
+if [ -e /usr/lib/xen-tools/common.sh ]; then
+    . /usr/lib/xen-tools/common.sh
+else
+    . ./hooks/common.sh
+fi
+
+if [ "${pygrub}" ]; then
+#
+# Log our start
+#
+
+logMessage Script $0 starting
+
+#
+# Resolve the correct architecutre
+#
+
+if [ "${arch}" = "i386" ]; then
+    XEN_ARCH="686"
+elif [ "${arch}" = "amd64" ]; then
+    XEN_ARCH="amd64"
+elif [ -z "${arch}" ]; then
+    UNAME_ARCH=`uname -m`
+    if [ "${UNAME_ARCH}" = "i686" ]; then
+        XEN_ARCH="686"
+    elif [ "${UNAME_ARCH}" = "x86_64" ]; then
+        XEN_ARCH="amd64"
+    else
+        logMessage Unknown kernel architecture ${UNAME_ARCH}.
+        logMessage Please report this as bug to xen-tools-dev@xen-tools.org.
+        logMessage Script $0 failed
+        exit 1
+    fi
+else
+    logMessage Unknown kernel architecture ${arch}
+    logMessage Script $0 failed
+    exit 1
+fi
+
+#
+# Attempt to install a xen kernel, if that fails, then install a normal one
+#
+
+KERNEL_XEN_PKG="linux-image-xen-$XEN_ARCH"
+KERNEL_PKG="linux-image-$XEN_ARCH"
+
+logMessage Attempting to install the $KERNEL_XEN_PKG kernel image
+if chroot ${prefix} /usr/bin/apt-cache show $KERNEL_XEN_PKG > /dev/null 2>&1; then
+    logMessage Package $KERNEL_XEN_PKG is available - installing
+    installDebianPackage ${prefix} initramfs-tools
+    installDebianPackage ${prefix} $KERNEL_XEN_PKG
+
+else
+    logMessage Package $KERNEL_XEN_PKG is not available
+    logMessage Attempting to install the $KERNEL_PKG kernel image
+    logMessage WARNING: This kernel may not have pvops
+    if chroot ${prefix} /usr/bin/apt-cache show $KERNEL_PKG > /dev/null 2>&1; then
+        logMessage Package $KERNEL_PKG is available - installing
+        installDebianPackage ${prefix} initramfs-tools
+        installDebianPackage ${prefix} $KERNEL_PKG
+    else
+        logMessage Package $KERNEL_PKG is not available
+        logMessage pygrub set, but kernel could not be installed
+        logMessage Script $0 failed
+        exit 1
+    fi
+fi
+
+DOMU_KERNEL=$(basename $(ls -1 ${prefix}/boot/vmlinuz* | tail -n 1))
+KERNEL_REV=$(echo $DOMU_KERNEL | sed "s/vmlinuz-//g")
+DOMU_RAMDISK="initrd.img-$KERNEL_REV"
+DOMU_ISSUE=$(sed -re "s/ *\\\.*//g" -e1q < ${prefix}/etc/issue)
+
+#
+# Generate initrd if it does not exist
+#
+
+if [ -f ${prefix}/boot/$DOMU_RAMDISK ]; then
+    logMessage initrd exists, skipping generation
+else
+    logMessage initrd missing, generating
+    chroot ${prefix} update-initramfs -c -k $KERNEL_REV
+fi
+
+#
+# Generate a menu.lst for pygrub
+#
+
+mkdir -p ${prefix}/boot/grub
+cat << E_O_MENU > ${prefix}/boot/grub/menu.lst
+default         0
+timeout         2
+
+title           $DOMU_ISSUE
+root            (hd0,0)
+kernel          /boot/$DOMU_KERNEL root=/dev/xvda2 ro 
+initrd          /boot/$DOMU_RAMDISK
+
+title           $DOMU_ISSUE (Single-User)
+root            (hd0,0)
+kernel          /boot/$DOMU_KERNEL root=/dev/xvda2 ro single
+initrd          /boot/$DOMU_RAMDISK
+
+E_O_MENU
+
+#
+#  Install the module-init-tools package.
+#
+
+installDebianPackage ${prefix} module-init-tools
+
+else
+    logMessage pygrub not set, skipping kernel install
+fi # if pygrub
+
+#
+#  Log our finish
+#
+
+logMessage Script $0 finished

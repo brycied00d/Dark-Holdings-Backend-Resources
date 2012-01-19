@@ -1,0 +1,13 @@
+#!/bin/bash
+
+. /usr/sbin/dhcommon.sh
+
+if [ -z $dom ]; then
+	echo "dhremoveslice dom"
+	exit 1
+fi
+
+umount /mnt/hd
+xen-delete-image $dom.darkholdings.com
+xen-delete-image $dom
+rm /etc/xen/$dom

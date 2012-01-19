@@ -1,0 +1,3 @@
+#!/bin/bash
+
+echo -e "a reboot happened, wtf!\n\n$(uname -a)\n\n$(uptime)" | mail -s "GIBSON REBOOTED!" zetas@zet.as
